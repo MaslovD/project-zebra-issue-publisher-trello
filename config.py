@@ -49,11 +49,14 @@ class ApplicationConfig:
 
     @staticmethod
     def _from_properties_url(url) -> dict:
-        print("Sending request to get props")
-        session = requests.Session()
-        response = session.get(url)
-        print("Got props")
-        props = jprops.load_properties(io.StringIO(response.text))
-        print("Props loaded")
-        session.close()
-        return props
+        try:
+            print("Sending request to get props")
+            session = requests.Session()
+            response = session.get(url)
+            print("Got props")
+            props = jprops.load_properties(io.StringIO(response.text))
+            print("Props loaded")
+            session.close()
+            return props
+        except Exception as e:
+            print(str(e)); sys.exit(123)
