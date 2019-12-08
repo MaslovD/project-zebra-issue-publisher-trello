@@ -8,7 +8,13 @@ from json import loads
 PROPERTIES_URL = getenv('PROPERTIES_URL')
 
 config = ApplicationConfig(PROPERTIES_URL)
+trello_client = TrelloClient(
+    api_key=config.trello_api_key,
+    token=config.trello_token
+)
 
+trello_board = trello_client.list_boards()[0]
+trello_list = trello_board.get_list('5dbf362946cb870de24aff11')
 
 # try:
 #     eureka_client.init_registry_client(
@@ -28,33 +34,29 @@ def on_message(channel, method_frame, header_frame, body):
     channel.basic_ack(delivery_tag=method_frame.delivery_tag)
 
 
-virtual_host = config.rabbitmq_virtual_host.replace('/', '')
-virtual_host = virtual_host if virtual_host else '/'
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters(
-        host=config.rabbitmq_host,
-        port=config.rabbitmq_port,
-        credentials=pika.PlainCredentials(
-            config.rabbitmq_username,
-            config.rabbitmq_password
-        ),
-        virtual_host=virtual_host
+def run():
+    virtual_host = config.rabbitmq_virtual_host.replace('/', '')
+    virtual_host = virtual_host if virtual_host else '/'
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(
+            host=config.rabbitmq_host,
+            port=config.rabbitmq_port,
+            credentials=pika.PlainCredentials(
+                config.rabbitmq_username,
+                config.rabbitmq_password
+            ),
+            virtual_host=virtual_host
+        )
     )
-)
-print("Created connection")
-channel = connection.channel()
-channel.exchange_declare(exchange_type='topic', exchange=config.rabbitmq_exchange_name)
-channel.queue_declare(queue=config.rabbitmq_queue_name)
-channel.queue_bind(queue=config.rabbitmq_queue_name, exchange=config.rabbitmq_exchange_name,
-                   routing_key=config.rabbitmq_queue_key)
-channel.basic_consume(config.rabbitmq_queue_name, on_message)
+    print("Created connection")
+    channel = connection.channel()
+    channel.exchange_declare(exchange_type='topic', exchange=config.rabbitmq_exchange_name)
+    channel.queue_declare(queue=config.rabbitmq_queue_name)
+    channel.queue_bind(queue=config.rabbitmq_queue_name, exchange=config.rabbitmq_exchange_name,
+                       routing_key=config.rabbitmq_queue_key)
+    channel.basic_consume(config.rabbitmq_queue_name, on_message)
+    channel.start_consuming()
 
-trello_client = TrelloClient(
-    api_key=config.trello_api_key,
-    token=config.trello_token
-)
 
-trello_board = trello_client.list_boards()[0]
-trello_list = trello_board.get_list('5dbf362946cb870de24aff11')
-
-channel.start_consuming()
+if __name__ == '__main__':
+    run()
