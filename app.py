@@ -22,7 +22,9 @@ config = ApplicationConfig(PROPERTIES_URL)
 
 def on_message(channel, method_frame, header_frame, body):
     body = loads(body.decode('utf8'))
-    trello_list.add_card(name=body.get('name'), desc=body.get('arbitraryDescription'))
+    trello_list.add_card(name=body.get('name'),
+                         desc=body.get('arbitraryDescription'),
+                         assign=[trello_board.all_members()[0]])
     channel.basic_ack(delivery_tag=method_frame.delivery_tag)
 
 
