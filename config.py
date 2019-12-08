@@ -29,6 +29,7 @@ class ApplicationConfig:
         # self.eureka_instance_name = props.get("eureka.instance.name")
         # self.eureka_lease_renewal_interval_in_seconds = int(props.get("eureka.instance.leaseRenewalIntervalInSeconds", 5))
         # self.eureka_registry_fetch_interval_seconds = int(props.get("eureka.client.registryFetchIntervalSeconds", 5))
+        print("Got properties: \n %s" % (str(props)))
         self.trello_api_key = props.get('issue-publisher.trello.api-key')
         self.trello_token = props.get('issue-publisher.trello.token')
         self.rabbitmq_host = props.get('spring.rabbitmq.host')

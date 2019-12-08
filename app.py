@@ -41,6 +41,7 @@ connection = pika.BlockingConnection(
         virtual_host=virtual_host
     )
 )
+print("Created connection")
 channel = connection.channel()
 channel.exchange_declare(exchange_type='topic', exchange=config.rabbitmq_exchange_name)
 channel.queue_declare(queue=config.rabbitmq_queue_name)
