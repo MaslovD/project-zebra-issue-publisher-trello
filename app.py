@@ -57,8 +57,4 @@ trello_client = TrelloClient(
 trello_board = trello_client.list_boards()[0]
 trello_list = trello_board.get_list('5dbf362946cb870de24aff11')
 
-try:
-    channel.start_consuming()
-except KeyboardInterrupt:
-    channel.stop_consuming()
-connection.close()
+channel.start_consuming()
