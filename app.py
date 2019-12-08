@@ -26,9 +26,19 @@ def on_message(channel, method_frame, header_frame, body):
     channel.basic_ack(delivery_tag=method_frame.delivery_tag)
 
 
-parameters = pika.URLParameters(
-    f'{config.rabbitmq_protocol}://{config.rabbitmq_username}:{config.rabbitmq_password}@{config.rabbitmq_host}:{config.rabbitmq_port}/{config.rabbitmq_virtual_host}')
-connection = pika.BlockingConnection()
+virtual_host = config.rabbitmq_virtual_host.replace('/', '')
+virtual_host = virtual_host if virtual_host else '/'
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters(
+        host=config.rabbitmq_host,
+        port=config.rabbitmq_port,
+        credentials=pika.PlainCredentials(
+            config.rabbitmq_username,
+            config.rabbitmq_password
+        ),
+        virtual_host=virtual_host
+    )
+)
 channel = connection.channel()
 channel.exchange_declare(exchange_type='topic', exchange=config.rabbitmq_exchange_name)
 channel.queue_declare(queue=config.rabbitmq_queue_name)
