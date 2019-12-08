@@ -49,9 +49,11 @@ class ApplicationConfig:
 
     @staticmethod
     def _from_properties_url(url) -> dict:
+        print("Sending request to get props")
         session = requests.Session()
-        session.trust_env = False
         response = session.get(url)
+        print("Got props")
         props = jprops.load_properties(io.StringIO(response.text))
+        print("Props loaded")
         session.close()
         return props
