@@ -37,8 +37,7 @@ def on_message(channel, method_frame, header_frame, body):
 
 
 def run():
-    virtual_host = config.rabbitmq_virtual_host.replace('/', '')
-    virtual_host = virtual_host if virtual_host else '/'
+
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=config.rabbitmq_host,
@@ -47,12 +46,18 @@ def run():
                 config.rabbitmq_username,
                 config.rabbitmq_password
             ),
-            virtual_host=virtual_host
+            virtual_host=config.rabbitmq_virtual_host
         )
     )
-    logger.info("Rabbit connection created")
+    logger.info("RabbitMQ connection created with params: host=%s port=%s virtual_host=%s ssl=%s",
+                connection._impl.params.host,
+                connection._impl.params.port,
+                connection._impl.params.virtual_host,
+                bool(connection._impl.params.ssl_options))
     channel = connection.channel()
+    logger.info("Exchange %s created", config.rabbitmq_exchange_name)
     channel.exchange_declare(exchange_type='topic', exchange=config.rabbitmq_exchange_name)
+    logger.info("Queue %s created", config.rabbitmq_queue_name)
     channel.queue_declare(queue=config.rabbitmq_queue_name)
     channel.queue_bind(queue=config.rabbitmq_queue_name, exchange=config.rabbitmq_exchange_name,
                        routing_key=config.rabbitmq_queue_key)
