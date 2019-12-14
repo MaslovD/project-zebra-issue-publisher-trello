@@ -4,9 +4,10 @@ from py_eureka_client import eureka_client
 import pika
 from trello import TrelloClient
 from json import loads
+from logger import get_logger
 
 PROPERTIES_URL = getenv('PROPERTIES_URL')
-
+logger = get_logger(__name__)
 config = ApplicationConfig(PROPERTIES_URL)
 trello_client = TrelloClient(
     api_key=config.trello_api_key,
@@ -30,13 +31,13 @@ def on_message(channel, method_frame, header_frame, body):
     body = loads(body.decode('utf8'))
     trello_list.add_card(name=body.get('name'),
                          desc=body.get('arbitraryDescription'),
-                         assign=[trello_board.all_members()[0]])
+                         # assign=[trello_board.all_members()[0]]
+                         )
     channel.basic_ack(delivery_tag=method_frame.delivery_tag)
 
 
 def run():
-    virtual_host = config.rabbitmq_virtual_host.replace('/', '')
-    virtual_host = virtual_host if virtual_host else '/'
+
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=config.rabbitmq_host,
@@ -45,12 +46,18 @@ def run():
                 config.rabbitmq_username,
                 config.rabbitmq_password
             ),
-            virtual_host=virtual_host
+            virtual_host=config.rabbitmq_virtual_host
         )
     )
-    print("Created connection")
+    logger.info("RabbitMQ connection created with params: host=%s port=%s virtual_host=%s ssl=%s",
+                connection._impl.params.host,
+                connection._impl.params.port,
+                connection._impl.params.virtual_host,
+                bool(connection._impl.params.ssl_options))
     channel = connection.channel()
+    logger.info("Exchange %s created", config.rabbitmq_exchange_name)
     channel.exchange_declare(exchange_type='topic', exchange=config.rabbitmq_exchange_name)
+    logger.info("Queue %s created", config.rabbitmq_queue_name)
     channel.queue_declare(queue=config.rabbitmq_queue_name)
     channel.queue_bind(queue=config.rabbitmq_queue_name, exchange=config.rabbitmq_exchange_name,
                        routing_key=config.rabbitmq_queue_key)

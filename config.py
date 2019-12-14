@@ -29,7 +29,7 @@ class ApplicationConfig:
         # self.eureka_instance_name = props.get("eureka.instance.name")
         # self.eureka_lease_renewal_interval_in_seconds = int(props.get("eureka.instance.leaseRenewalIntervalInSeconds", 5))
         # self.eureka_registry_fetch_interval_seconds = int(props.get("eureka.client.registryFetchIntervalSeconds", 5))
-        print("Got properties: \n %s" % (str(props)))
+        self.logging_level = props.get('loglevel', 'INFO')
         self.trello_api_key = props.get('issue-publisher.trello.api-key')
         self.trello_token = props.get('issue-publisher.trello.token')
         self.rabbitmq_host = props.get('spring.rabbitmq.host')
@@ -50,13 +50,10 @@ class ApplicationConfig:
     @staticmethod
     def _from_properties_url(url) -> dict:
         try:
-            print("Sending request to get props")
             session = requests.Session()
             response = session.get(url)
-            print("Got props")
             props = jprops.load_properties(io.StringIO(response.text))
-            print("Props loaded")
             session.close()
             return props
         except Exception as e:
-            print(str(e)); sys.exit(123)
+            sys.exit(123)
