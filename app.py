@@ -29,15 +29,27 @@ trello_list = trello_board.get_list('5dbf362946cb870de24aff11')
 
 def on_message(channel, method_frame, header_frame, body):
     body = loads(body.decode('utf8'))
-    trello_list.add_card(name=body.get('name'),
-                         desc=body.get('arbitraryDescription'),
-                         # assign=[trello_board.all_members()[0]]
-                         )
-    channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+    list_labels = [(i.get('name'), i.get('color')) for i in body.get('labels', {})]
+    try:
+        trello_list.add_card(name=body.get('name'),
+                             desc=body.get('arbitraryDescription'),
+                             labels=[create_label_safe(*i) for i in list_labels]
+                             # assign=[trello_board.all_members()[0]]
+                             )
+        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+    except Exception as e:
+        logger.exception(e, exc_info=True)
+
+
+def create_label_safe(name, color):
+    list_labels = {(i.name, i.color): i for i in trello_board.get_labels()}
+    if (name, color) in list_labels.keys():
+        return list_labels[(name, color)]
+    else:
+        return trello_board.add_label(name, color)
 
 
 def run():
-
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=config.rabbitmq_host,
