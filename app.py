@@ -1,9 +1,11 @@
 from config import ApplicationConfig
+import traceback
+import sys
 from os import getenv
 from py_eureka_client import eureka_client
 import pika
 from trello import TrelloClient
-from json import loads
+from json import loads, dumps
 from logger import get_logger
 
 PROPERTIES_URL = getenv('PROPERTIES_URL')
@@ -36,9 +38,16 @@ def on_message(channel, method_frame, header_frame, body):
                              labels=[create_label_safe(*i) for i in list_labels]
                              # assign=[trello_board.all_members()[0]]
                              )
-        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
     except Exception as e:
+        channel.basic_publish(exchange=config.rabbitmq_exchange_name,
+                              routing_key=config.rabbitmq_dead_letter_queue_key,
+                              body=dumps({
+                                  "body": body,
+                                  "exception": ''.join(traceback.format_exception(*sys.exc_info()))
+                              }))
         logger.exception(e, exc_info=True)
+    finally:
+        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
 
 
 def create_label_safe(name, color):
@@ -73,6 +82,10 @@ def run():
     channel.queue_declare(queue=config.rabbitmq_queue_name)
     channel.queue_bind(queue=config.rabbitmq_queue_name, exchange=config.rabbitmq_exchange_name,
                        routing_key=config.rabbitmq_queue_key)
+    logger.info("Queue %s created", config.rabbitmq_dead_letter_queue_name)
+    channel.queue_declare(queue=config.rabbitmq_dead_letter_queue_name)
+    channel.queue_bind(queue=config.rabbitmq_dead_letter_queue_name, exchange=config.rabbitmq_exchange_name,
+                       routing_key=config.rabbitmq_dead_letter_queue_key)
     channel.basic_consume(config.rabbitmq_queue_name, on_message)
     channel.start_consuming()
 

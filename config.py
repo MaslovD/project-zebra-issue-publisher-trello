@@ -40,6 +40,8 @@ class ApplicationConfig:
         self.rabbitmq_password = props.get('spring.rabbitmq.password')
         self.rabbitmq_queue_name = props.get('issue-publisher.trello.rabbitmq.queue.name')
         self.rabbitmq_queue_key = props.get('issue-publisher.trello.rabbitmq.queue.key')
+        self.rabbitmq_dead_letter_queue_name = props.get('issue-publisher.trello.rabbitmq.dead-letter-queue.name')
+        self.rabbitmq_dead_letter_queue_key = props.get('issue-publisher.trello.rabbitmq.dead-letter-queue.key')
         self.rabbitmq_exchange_name = props.get('issue-publisher.rabbitmq.exchange.name')
 
     @staticmethod
