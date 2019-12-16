@@ -28,16 +28,43 @@ trello_list = trello_board.get_list('5dbf362946cb870de24aff11')
 # except Exception:
 #     print('Failed to init eureka')
 
+CONTACT_FORMAT = """
+
+Контактная информация:
+----------------------
+*{}*
+"""
+
+
+def name(body):
+    return body.get('name')
+
+
+def desc(body):
+    return body.get('arbitraryDescription') + contact(body)
+
+
+def labels(body):
+    list_labels = [(i.get('name'), i.get('color')) for i in body.get('labels', {})]
+    return [create_label_safe(*i) for i in list_labels]
+
+
+def contact(body):
+    contact_info_plain = body.get('contactInfo', '')
+    if contact_info_plain != '':
+        return CONTACT_FORMAT.format(contact_info_plain)
+    return ""
+
+
+TRELLO_MAPPING = {'name': name,
+                  'desc': desc,
+                  'labels': labels}
+
 
 def on_message(channel, method_frame, header_frame, body):
     body = loads(body.decode('utf8'))
-    list_labels = [(i.get('name'), i.get('color')) for i in body.get('labels', {})]
     try:
-        trello_list.add_card(name=body.get('name'),
-                             desc=body.get('arbitraryDescription'),
-                             labels=[create_label_safe(*i) for i in list_labels]
-                             # assign=[trello_board.all_members()[0]]
-                             )
+        trello_list.add_card(**{i[0]: i[1](body) for i in TRELLO_MAPPING.items()})
     except Exception as e:
         channel.basic_publish(exchange=config.rabbitmq_exchange_name,
                               routing_key=config.rabbitmq_dead_letter_queue_key,
