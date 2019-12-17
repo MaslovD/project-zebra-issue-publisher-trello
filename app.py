@@ -55,9 +55,16 @@ def contact(body):
     return ""
 
 
+def assign(*args):
+    board = trello_board(config.trello_api_key, config.trello_token)
+    return [board.all_members()[0]]
+
+
 TRELLO_MAPPING = {'name': name,
                   'desc': desc,
-                  'labels': labels}
+                  'labels': labels,
+                  'assign': assign
+                  }
 
 
 def on_message(channel, method_frame, header_frame, body):
