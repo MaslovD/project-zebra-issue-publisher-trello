@@ -2,7 +2,6 @@ from config import ApplicationConfig
 import traceback
 import sys
 from os import getenv
-from py_eureka_client import eureka_client
 import pika
 from trello import TrelloClient
 from json import loads, dumps
@@ -11,33 +10,61 @@ from logger import get_logger
 PROPERTIES_URL = getenv('PROPERTIES_URL')
 logger = get_logger(__name__)
 config = ApplicationConfig(PROPERTIES_URL)
-trello_client = TrelloClient(
-    api_key=config.trello_api_key,
-    token=config.trello_token
-)
 
-trello_board = trello_client.list_boards()[0]
-trello_list = trello_board.get_list('5dbf362946cb870de24aff11')
+# TRELLO_VERSION = r"Version: (\S+)\.?"
+TRELLO_LIST_PUSH_NAME = "backlog"
 
-# try:
-#     eureka_client.init_registry_client(
-#         eureka_server=config.eureka_url,
-#         app_name=config.eureka_instance_name,
-#         renewal_interval_in_secs=config.eureka_lease_renewal_interval_in_seconds
-#     )
-# except Exception:
-#     print('Failed to init eureka')
+
+def trello_list(api_key, token, url="https://trello.com/b/uEd50g7X/zebra-test"):
+    board = trello_board(api_key, token, url)
+    list_lists = board.open_lists()
+    if TRELLO_LIST_PUSH_NAME in list(map(str.lower, [l.name for l in list_lists])):
+        return list_lists[list(map(str.lower, [l.name for l in list_lists])).index(TRELLO_LIST_PUSH_NAME)]
+    return board.add_list(TRELLO_LIST_PUSH_NAME, 0)
+
+
+def trello_board(api_key, token, url="https://trello.com/b/uEd50g7X/zebra-test"):
+    return list(filter(lambda b: b.url == url, TrelloClient(api_key=api_key, token=token).list_boards()))[0]
+
+
+CONTACT_FORMAT = """
+
+Contact info:
+----------------------
+*{}*
+"""
+
+
+def name(body):
+    return body.get('name', 'Custom issue')
+
+
+def desc(body):
+    return body.get('arbitraryDescription', '') + contact(body)
+
+
+def labels(body):
+    list_labels = [(i.get('name', 'no name'), i.get('color', 'none')) for i in body.get('labels', {})]
+    return [create_label_safe(*i) for i in list_labels]
+
+
+def contact(body):
+    contact_info_plain = body.get('contactInfo', '')
+    if contact_info_plain != '':
+        return CONTACT_FORMAT.format(contact_info_plain)
+    return ""
+
+
+TRELLO_MAPPING = {'name': name,
+                  'desc': desc,
+                  'labels': labels}
 
 
 def on_message(channel, method_frame, header_frame, body):
-    body = loads(body.decode('utf8'))
-    list_labels = [(i.get('name'), i.get('color')) for i in body.get('labels', {})]
     try:
-        trello_list.add_card(name=body.get('name'),
-                             desc=body.get('arbitraryDescription'),
-                             labels=[create_label_safe(*i) for i in list_labels]
-                             # assign=[trello_board.all_members()[0]]
-                             )
+        body = loads(body.decode('utf8'))
+        trello_list(config.trello_api_key, config.trello_token).add_card(
+            **{i[0]: i[1](body) for i in TRELLO_MAPPING.items()})
     except Exception as e:
         channel.basic_publish(exchange=config.rabbitmq_exchange_name,
                               routing_key=config.rabbitmq_dead_letter_queue_key,
@@ -51,11 +78,12 @@ def on_message(channel, method_frame, header_frame, body):
 
 
 def create_label_safe(name, color):
-    list_labels = {(i.name, i.color): i for i in trello_board.get_labels()}
+    board = trello_board(config.trello_api_key, config.trello_token)
+    list_labels = {(i.name, i.color): i for i in board.get_labels()}
     if (name, color) in list_labels.keys():
         return list_labels[(name, color)]
     else:
-        return trello_board.add_label(name, color)
+        return board.add_label(name, color)
 
 
 def run():
