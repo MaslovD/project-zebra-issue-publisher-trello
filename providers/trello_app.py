@@ -1,3 +1,5 @@
+import base64
+
 from trello import TrelloClient
 
 
@@ -22,7 +24,8 @@ def contact(body, *args, **kwargs):
 
 
 def assign(body, board, *args, **kwargs):
-    return [board.all_members()[0]]
+    users = body.get('assigneeList', [])
+    return list(filter(lambda member: member.username in users, board.all_members()))
 
 
 TRELLO_LIST_PUSH_NAME = "backlog"
@@ -47,10 +50,25 @@ def create_label_safe(lname, color, board):
         return board.add_label(lname, color)
 
 
+def attach_file(attach_body, card):
+    name = attach_body.get("name", "attachment")
+    mimeType = attach_body.get("mimeType", "image/png")
+    file = attach_body.get("file", "")
+    url = attach_body.get("url", "")
+    if file != "":
+        card.attach(name=name, mimeType=mimeType, file=base64.b64decode(file))
+    elif url != "":
+        card.attach(name=name, mimeType=mimeType, url=url)
+    else:
+        raise NotImplementedError
+
+
 def push_card(trello_api_key, trello_token, body):
     board = trello_board(trello_api_key, trello_token)
-    trello_list(board).add_card(
+    card = trello_list(board).add_card(
         **{i[0]: i[1](body, board) for i in TRELLO_MAPPING.items()})
+    for attachment in body.get("attachments", []):
+        attach_file(attachment, card)
 
 
 TRELLO_MAPPING = {'name': name,
