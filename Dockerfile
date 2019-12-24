@@ -1,6 +1,7 @@
 FROM python:3.7-alpine3.9
 MAINTAINER Makrushin Egor
-COPY . ./app
-WORKDIR ./app
+WORKDIR /app
+COPY ./requirements.txt /app/requirements.txt
 RUN pip install -r requirements.txt
-CMD ["python", "app.py"]
+COPY . /app
+ENTRYPOINT ["python", "app.py"]
