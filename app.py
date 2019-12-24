@@ -1,6 +1,7 @@
 import sys
 import traceback
 from json import loads, dumps
+from json.decoder import JSONDecodeError
 from os import getenv
 
 import pika
@@ -23,6 +24,14 @@ def on_message(channel, method_frame, header_frame, body):
                                  body)
         else:
             raise NotImplementedError
+    except JSONDecodeError as e:
+        channel.basic_publish(exchange=config.rabbitmq_exchange_name,
+                              routing_key=config.rabbitmq_dead_letter_queue_key,
+                              body=dumps({
+                                  "body": str(body),
+                                  "exception": ''.join(traceback.format_exception(*sys.exc_info()))
+                              }))
+        logger.exception(e, exc_info=True)
     except Exception as e:
         channel.basic_publish(exchange=config.rabbitmq_exchange_name,
                               routing_key=config.rabbitmq_dead_letter_queue_key,
