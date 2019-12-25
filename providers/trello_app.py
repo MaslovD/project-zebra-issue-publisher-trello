@@ -38,8 +38,8 @@ def trello_list(board):
     return board.add_list(TRELLO_LIST_PUSH_NAME, 0)
 
 
-def trello_board(api_key, token, url="https://trello.com/b/uEd50g7X/zebra-test"):
-    return list(filter(lambda b: b.url == url, TrelloClient(api_key=api_key, token=token).list_boards()))[0]
+def trello_board(api_key, token, url):
+    return list(filter(lambda b: b.url.startswith(url), TrelloClient(api_key=api_key, token=token).list_boards()))[0]
 
 
 def create_label_safe(lname, color, board):
@@ -64,7 +64,10 @@ def attach_file(attach_body, card):
 
 
 def push_card(trello_api_key, trello_token, body):
-    board = trello_board(trello_api_key, trello_token)
+    board = trello_board(
+        trello_api_key,
+        trello_token,
+        body.get('board_url', "https://trello.com/b/uEd50g7X"))
     card = trello_list(board).add_card(
         **{i[0]: i[1](body, board) for i in TRELLO_MAPPING.items()})
     for attachment in body.get("attachments", []):
